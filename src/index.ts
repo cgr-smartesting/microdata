@@ -1,3 +1,5 @@
+export const ARRAY_ITEM_ATTRIBUTE_NAME = 'array-item'
+
 export function microdataAll<T>(
   itemtype: string,
   scope: Scope,
@@ -30,6 +32,10 @@ export function toArray<T>(
   return Array.isArray(o) ? o : [o as T]
 }
 
+function isArrayItem(child: Element): boolean {
+  return child.getAttribute(ARRAY_ITEM_ATTRIBUTE_NAME) != null
+}
+
 function extract<T>(scope: Element, extractValue: ExtractValue): T {
   const itemType = scope.getAttribute('itemtype')
 
@@ -44,7 +50,7 @@ function extract<T>(scope: Element, extractValue: ExtractValue): T {
   while ((child = children.shift())) {
     const key = child.getAttribute('itemprop')
     if (key) {
-      add(microdata, key, value(child, extractValue))
+      add(microdata, key, value(child, extractValue), isArrayItem(child))
     }
     if (child.getAttribute('itemscope') === null)
       prepend(children, child.children)
@@ -53,11 +59,11 @@ function extract<T>(scope: Element, extractValue: ExtractValue): T {
   return microdata as unknown as T
 }
 
-function add(microdata: any, key: string, value: any) {
+function add(microdata: any, key: string, value: any, isArrayItem = false) {
   if (value === null) return
 
   const prop = microdata[key]
-  if (prop == null) microdata[key] = value
+  if (prop == null) microdata[key] = isArrayItem ? [value] : value
   else if (Array.isArray(prop)) prop.push(value)
   else microdata[key] = [prop, value]
 }

@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom'
-import { microdata, toArray } from '../src/index.js'
+import { microdata, microdataAll, toArray } from '../src/index.js'
 import {
   BreadcrumbList,
   CreativeWork,
@@ -247,5 +247,61 @@ describe('microdata', () => {
       const dressNames = dresses.map((e: ListItem) => e.name)
       assert.deepStrictEqual(dressNames, [])
     })
+  })
+
+  it('can force array creation of children', () => {
+    type PublicFigure = {
+      name: string
+      nicknames: ReadonlyArray<string>
+    }
+
+    function createPublicFigure(
+      name: string,
+      ...nicknames: ReadonlyArray<string>
+    ): PublicFigure {
+      return { name, nicknames }
+    }
+
+    const publicFigures = [
+      createPublicFigure('Abraham Lincoln', 'Uncle Abe', 'Honest Abe'),
+      createPublicFigure('Charlie Chaplin', 'The Tramp'),
+      createPublicFigure('Me'),
+    ]
+
+    const dom = new JSDOM(`<!DOCTYPE html>
+        ${publicFigures.map(
+          (publicFigure) =>
+            `<div itemscope itemtype="https://schema.org/PublicFigure">
+            <div itemprop="name">${publicFigure.name}</div>
+            <ul>
+                ${publicFigure.nicknames.map(
+                  (nickname) =>
+                    `<li itemprop="nicknames" array-item="true">${nickname}</li>`
+                )}
+            </ul>
+          </div>`
+        )}`)
+
+    const persons = microdataAll<PublicFigure>(
+      'https://schema.org/PublicFigure',
+      dom.window.document.documentElement
+    )!
+
+    assert.deepStrictEqual(persons, [
+      {
+        '@type': 'PublicFigure',
+        name: 'Abraham Lincoln',
+        nicknames: ['Uncle Abe', 'Honest Abe'],
+      },
+      {
+        '@type': 'PublicFigure',
+        name: 'Charlie Chaplin',
+        nicknames: ['The Tramp'],
+      },
+      {
+        '@type': 'PublicFigure',
+        name: 'Me',
+      },
+    ])
   })
 })
